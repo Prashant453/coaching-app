@@ -11,11 +11,12 @@ const authRoutes = require("./routes/auth.routes");
 const courseRoutes = require("./routes/course.routes");
 const paymentRoutes = require("./routes/payment.routes");
 const testRoutes = require("./routes/test.routes");
+const studentRoutes = require("./routes/student.routes");
 
 const app = express();
 
 // Middleware
-app.use(cors({ origin: process.env.FRONTEND_URL || "*" }));
+app.use(cors({ origin: "*" }));
 app.use(helmet());
 app.use(morgan("dev"));
 app.use(express.json());
@@ -55,6 +56,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/tests", testRoutes);
+app.use("/api/student", studentRoutes);
 
 // Root Endpoint
 app.get("/", (req, res) => {
