@@ -89,3 +89,51 @@ exports.listBatches = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
+
+// GET /api/app-version — public, no auth needed
+exports.getAppVersion = async (req, res) => {
+    try {
+        // Check if app_settings table exists with version info
+        const result = await pool.query(
+            `SELECT * FROM app_settings WHERE key = 'app_version' LIMIT 1`
+        );
+        if (result.rows.length > 0) {
+            const settings = JSON.parse(result.rows[0].value);
+            return res.json(settings);
+        }
+        // Default fallback
+        res.json({
+            latest_version: '1.0.0',
+            min_version: '1.0.0',
+            update_url: '',
+            release_notes: 'Initial release',
+            is_mandatory: false
+        });
+    } catch (err) {
+        // Table might not exist yet, return defaults
+        res.json({
+            latest_version: '1.0.0',
+            min_version: '1.0.0',
+            update_url: '',
+            release_notes: 'Initial release',
+            is_mandatory: false
+        });
+    }
+};
+
+// PUT /api/admin/app-version — admin sets version info
+exports.updateAppVersion = async (req, res) => {
+    try {
+        const { latest_version, min_version, update_url, release_notes, is_mandatory } = req.body;
+        const value = JSON.stringify({ latest_version, min_version, update_url, release_notes, is_mandatory });
+        await pool.query(
+            `INSERT INTO app_settings (key, value) VALUES ('app_version', $1)
+             ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+            [value]
+        );
+        res.json({ message: 'App version updated', version: JSON.parse(value) });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+};

@@ -60,6 +60,10 @@ app.use("/api/tests", testRoutes);
 app.use("/api/student", studentRoutes);
 app.use("/api/admin", adminRoutes);
 
+// Public app version check (no auth)
+const { getAppVersion } = require("./controllers/admin.controller");
+app.get("/api/app-version", getAppVersion);
+
 // Root Endpoint
 app.get("/", (req, res) => {
     res.send("Coaching API Running");

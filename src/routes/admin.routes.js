@@ -15,4 +15,7 @@ router.post('/lectures', ctrl.createLecture);
 router.put('/lectures/:id', ctrl.updateLecture);
 router.delete('/lectures/:id', ctrl.deleteLecture);
 
+// App Version
+router.put('/app-version', ctrl.updateAppVersion);
+
 module.exports = router;
