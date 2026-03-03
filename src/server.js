@@ -12,6 +12,7 @@ const courseRoutes = require("./routes/course.routes");
 const paymentRoutes = require("./routes/payment.routes");
 const testRoutes = require("./routes/test.routes");
 const studentRoutes = require("./routes/student.routes");
+const adminRoutes = require("./routes/admin.routes");
 
 const app = express();
 
@@ -57,6 +58,7 @@ app.use("/api/courses", courseRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/tests", testRoutes);
 app.use("/api/student", studentRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Root Endpoint
 app.get("/", (req, res) => {
