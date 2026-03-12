@@ -15,5 +15,9 @@ router.get('/events', ctrl.getEvents);
 router.get('/doubts', authenticateToken, ctrl.getDoubts);
 router.post('/doubts', authenticateToken, ctrl.askDoubt);
 router.get('/performance', authenticateToken, ctrl.getPerformance);
+router.get('/notifications', authenticateToken, ctrl.getNotifications);
+router.put('/notifications/read', authenticateToken, ctrl.markNotificationsRead);
+router.put('/fcm-token', authenticateToken, ctrl.updateFcmToken);
+router.post('/checkout/apply-coupon', authenticateToken, ctrl.applyCoupon);
 
 module.exports = router;

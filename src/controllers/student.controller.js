@@ -224,3 +224,114 @@ exports.getPerformance = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
+
+// GET /api/student/notifications
+exports.getNotifications = async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC', [req.user.id]
+        );
+        res.json({ notifications: result.rows });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// PUT /api/student/notifications/read
+exports.markNotificationsRead = async (req, res) => {
+    try {
+        await pool.query(
+            'UPDATE notifications SET is_read = true WHERE user_id = $1', [req.user.id]
+        );
+        res.json({ message: 'Notifications marked as read' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// PUT /api/student/fcm-token
+exports.updateFcmToken = async (req, res) => {
+    try {
+        const { fcm_token } = req.body;
+        if (!fcm_token) return res.status(400).json({ message: 'Token is required' });
+
+        await pool.query('UPDATE users SET fcm_token = $1 WHERE id = $2', [fcm_token, req.user.id]);
+        res.json({ message: 'FCM token updated' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+// POST /api/student/checkout/apply-coupon
+exports.applyCoupon = async (req, res) => {
+    try {
+        const { code, course_id } = req.body;
+        if (!code || !course_id) return res.status(400).json({ message: 'Coupon code and course ID are required' });
+
+        const couponRes = await pool.query(
+            'SELECT * FROM coupons WHERE code = $1 AND (course_id IS NULL OR course_id = $2)',
+            [code.toUpperCase(), course_id]
+        );
+
+        if (couponRes.rows.length === 0) return res.status(404).json({ message: 'Invalid or inapplicable coupon' });
+        const coupon = couponRes.rows[0];
+
+        // Check expiry
+        if (coupon.expiry_date && new Date(coupon.expiry_date) < new Date()) {
+            return res.status(400).json({ message: 'Coupon has expired' });
+        }
+        // Check usage limits
+        if (coupon.max_usage && coupon.current_usage >= coupon.max_usage) {
+            return res.status(400).json({ message: 'Coupon usage limit reached' });
+        }
+
+        // Fetch course price to calculate discount mapping accurately
+        const courseRes = await pool.query('SELECT price, offer_price, offer_start_time, offer_end_time FROM courses WHERE id = $1', [course_id]);
+        if (courseRes.rows.length === 0) return res.status(404).json({ message: 'Course not found' });
+
+        const course = courseRes.rows[0];
+        let basePrice = Number(course.price);
+
+        // Determine if an offer is currently active
+        const now = new Date();
+        const offerStart = course.offer_start_time ? new Date(course.offer_start_time) : null;
+        const offerEnd = course.offer_end_time ? new Date(course.offer_end_time) : null;
+
+        let isOfferActive = false;
+        if (course.offer_price && offerStart && offerEnd) {
+            if (now >= offerStart && now <= offerEnd) {
+                basePrice = Number(course.offer_price);
+                isOfferActive = true;
+            }
+        }
+
+        let discountAmount = 0;
+        if (coupon.discount_type === 'percent') {
+            discountAmount = basePrice * (Number(coupon.discount_value) / 100);
+        } else {
+            discountAmount = Number(coupon.discount_value);
+        }
+
+        // Don't discount below 0
+        if (discountAmount > basePrice) discountAmount = basePrice;
+
+        const finalPrice = basePrice - discountAmount;
+
+        res.json({
+            message: 'Coupon applied',
+            coupon_id: coupon.id,
+            original_price: Number(course.price),
+            base_computation_price: basePrice, // Includes ongoing offer price if active
+            discount_amount: discountAmount,
+            final_price: finalPrice,
+            is_offer_active: isOfferActive
+        });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error applying coupon' });
+    }
+};

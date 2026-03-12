@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
     phone VARCHAR(20),
     class_name VARCHAR(50),
     batch_year VARCHAR(10),
+    fcm_token TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -33,7 +34,25 @@ CREATE TABLE IF NOT EXISTS courses (
     title VARCHAR(255) NOT NULL,
     description TEXT,
     price DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    offer_price DECIMAL(10, 2),
+    offer_start_time TIMESTAMP WITH TIME ZONE,
+    offer_end_time TIMESTAMP WITH TIME ZONE,
     video_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ==========================================
+-- 2B. COUPONS TABLE
+-- ==========================================
+CREATE TABLE IF NOT EXISTS coupons (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code VARCHAR(50) UNIQUE NOT NULL,
+    discount_type VARCHAR(20) NOT NULL CHECK (discount_type IN ('percent', 'fixed')),
+    discount_value DECIMAL(10, 2) NOT NULL,
+    max_usage INTEGER DEFAULT 100,
+    current_usage INTEGER DEFAULT 0,
+    course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+    expiry_date TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -44,9 +63,12 @@ CREATE TABLE IF NOT EXISTS purchases (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
-    razorpay_order_id VARCHAR(255) UNIQUE NOT NULL,
+    coupon_id UUID REFERENCES coupons(id) ON DELETE SET NULL,
+    razorpay_order_id VARCHAR(255) UNIQUE,
     razorpay_payment_id VARCHAR(255) UNIQUE,
     status VARCHAR(50) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed')),
+    access_type VARCHAR(50) DEFAULT 'paid' CHECK (access_type IN ('paid', 'admin_granted')),
+    granted_by_admin UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, course_id)
 );
@@ -231,11 +253,25 @@ CREATE TABLE IF NOT EXISTS attendance (
 );
 
 -- ==========================================
+-- 17. NOTIFICATIONS TABLE
+-- ==========================================
+CREATE TABLE IF NOT EXISTS notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    type VARCHAR(50) DEFAULT 'general',
+    is_read BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ==========================================
 -- INDEXES
 -- ==========================================
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_purchases_user_id ON purchases(user_id);
 CREATE INDEX IF NOT EXISTS idx_purchases_course_id ON purchases(course_id);
+CREATE INDEX IF NOT EXISTS idx_coupons_code ON coupons(code);
 CREATE INDEX IF NOT EXISTS idx_purchases_razorpay_order ON purchases(razorpay_order_id);
 CREATE INDEX IF NOT EXISTS idx_tests_course_id ON tests(course_id);
 CREATE INDEX IF NOT EXISTS idx_questions_test_id ON questions(test_id);
@@ -250,3 +286,4 @@ CREATE INDEX IF NOT EXISTS idx_submissions_assignment_id ON submissions(assignme
 CREATE INDEX IF NOT EXISTS idx_doubts_user_id ON doubts(user_id);
 CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id);
 CREATE INDEX IF NOT EXISTS idx_attendance_user_id ON attendance(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);

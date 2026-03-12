@@ -18,4 +18,18 @@ router.delete('/lectures/:id', ctrl.deleteLecture);
 // App Version
 router.put('/app-version', ctrl.updateAppVersion);
 
+// Courses Extra
+router.put('/courses/:id/offer', ctrl.updateCourseOffer);
+
+// Coupons CRUD
+router.get('/coupons', ctrl.listCoupons);
+router.post('/coupons', ctrl.createCoupon);
+router.delete('/coupons/:id', ctrl.deleteCoupon);
+
+// Enrollments
+router.post('/enrollments/grant', ctrl.grantAccess);
+
+// Notifications
+router.post('/notifications/send', ctrl.sendNotification);
+
 module.exports = router;
