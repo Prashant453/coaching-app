@@ -219,15 +219,15 @@ exports.deleteCoupon = async (req, res) => {
 // POST /api/admin/enrollments/grant
 exports.grantAccess = async (req, res) => {
     try {
-        const { user_email, course_id } = req.body;
-        if (!user_email || !course_id) {
-            return res.status(400).json({ message: 'User email and course ID are required' });
+        const { user_id, course_id } = req.body;
+        if (!user_id || !course_id) {
+            return res.status(400).json({ message: 'User ID and course ID are required' });
         }
 
         // Find user
-        const userRes = await pool.query('SELECT id FROM users WHERE email = $1', [user_email]);
+        const userRes = await pool.query('SELECT id FROM users WHERE id = $1', [user_id]);
         if (userRes.rows.length === 0) return res.status(404).json({ message: 'User not found' });
-        const studentId = userRes.rows[0].id;
+        const studentId = user_id;
 
         // Check if already purchased/granted
         const checkRes = await pool.query('SELECT id FROM purchases WHERE user_id = $1 AND course_id = $2', [studentId, course_id]);
@@ -263,34 +263,13 @@ exports.grantAccess = async (req, res) => {
 // POST /api/admin/notifications/send
 exports.sendNotification = async (req, res) => {
     try {
-        const { title, description, type, target, specific_user_email } = req.body;
-        // target could be 'all', 'unenrolled', 'specific'
+        const { title, description, type, user_ids } = req.body;
 
-        if (!title || !description || !target) {
-            return res.status(400).json({ message: 'Title, description, and target are required' });
+        if (!title || !description || !user_ids || !Array.isArray(user_ids) || user_ids.length === 0) {
+            return res.status(400).json({ message: 'Title, description, and at least one user are required' });
         }
 
-        let userIds = [];
-
-        if (target === 'specific' && specific_user_email) {
-            const uRes = await pool.query('SELECT id FROM users WHERE email = $1', [specific_user_email]);
-            if (uRes.rows.length === 0) return res.status(404).json({ message: 'User not found' });
-            userIds.push(uRes.rows[0].id);
-        } else if (target === 'all') {
-            const uRes = await pool.query('SELECT id FROM users WHERE role = $1', ['student']);
-            userIds = uRes.rows.map(r => r.id);
-        } else if (target === 'unenrolled') {
-            const uRes = await pool.query(`
-                SELECT id FROM users 
-                WHERE role = 'student' 
-                AND id NOT IN (SELECT user_id FROM purchases WHERE status = 'completed')
-            `);
-            userIds = uRes.rows.map(r => r.id);
-        }
-
-        if (userIds.length === 0) {
-            return res.status(400).json({ message: 'No users found for this target' });
-        }
+        const userIds = user_ids;
 
         const client = await pool.connect();
         try {
