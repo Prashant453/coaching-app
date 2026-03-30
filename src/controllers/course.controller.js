@@ -26,16 +26,17 @@ const createCourse = async (req, res) => {
 
 // @desc    Get all courses (Public)
 const listCourses = async (req, res) => {
-    // Exclude video_url for public listing, include offer details
-    const result = await pool.query(
-        'SELECT id, title, description, price, offer_price, offer_start_time, offer_end_time, created_at FROM courses ORDER BY created_at DESC'
-    );
+    try {
+        // Exclude video_url for public listing, include offer details
+        const result = await pool.query(
+            'SELECT id, title, description, price, offer_price, offer_start_time, offer_end_time, created_at FROM courses ORDER BY created_at DESC'
+        );
 
-    res.json({ courses: result.rows });
-} catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error fetching courses.' });
-}
+        res.json({ courses: result.rows });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error fetching courses.' });
+    }
 };
 
 // @desc    Get specific course content (Protected: Admin or Purchased Student)

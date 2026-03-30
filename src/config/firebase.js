@@ -27,27 +27,43 @@ try {
 }
 
 const sendPushNotification = async (tokens, title, body, data = {}) => {
-    if (!admin.apps.length || !tokens || tokens.length === 0) return;
+    if (!admin.apps.length || !tokens || tokens.length === 0) {
+        console.log('[FCM] Skipped: no app or no tokens');
+        return;
+    }
 
     try {
+        const cleanTokens = (Array.isArray(tokens) ? tokens : [tokens]).filter(t => t && typeof t === 'string');
+        if (cleanTokens.length === 0) {
+            console.log('[FCM] No valid tokens after filtering');
+            return;
+        }
+
+        // Ensure data values are all strings (FCM requirement)
+        const stringData = {};
+        for (const [k, v] of Object.entries(data)) {
+            stringData[k] = String(v);
+        }
+
         const message = {
-            notification: {
-                title,
-                body
-            },
-            data,
-            tokens: Array.isArray(tokens) ? tokens.filter(t => t) : [tokens].filter(t => t)
+            notification: { title, body },
+            data: stringData,
+            tokens: cleanTokens
         };
 
-        if (message.tokens.length > 0) {
-            const response = await admin.messaging().sendMulticast(message);
-            console.log(response.successCount + ' messages were sent successfully');
-            if (response.failureCount > 0) {
-                console.error(response.failureCount + ' messages failed.');
-            }
+        console.log(`[FCM] Sending to ${cleanTokens.length} token(s)...`);
+        const response = await admin.messaging().sendEachForMulticast(message);
+        console.log(`[FCM] Success: ${response.successCount}, Failures: ${response.failureCount}`);
+
+        if (response.failureCount > 0) {
+            response.responses.forEach((resp, idx) => {
+                if (!resp.success) {
+                    console.error(`[FCM] Token[${idx}] failed:`, resp.error?.code, resp.error?.message);
+                }
+            });
         }
     } catch (error) {
-        console.error('Error sending push notification:', error);
+        console.error('[FCM] Error sending push notification:', error.code, error.message);
     }
 };
 
